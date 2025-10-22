@@ -2,6 +2,7 @@
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 import { db } from "@/db";
@@ -54,7 +55,7 @@ export const upsertDoctor = actionClient
         availableToWeekDay: parsedInput.availableToWeekDay,
         availableFromtime: availableFromTimeUTC.format("HH:mm:ss"),
         availableTotime: availableToTimeUTC.format("HH:mm:ss"),
-        appointmentPriceInCenst: parsedInput.appointmentPriceInCents,
+        appointmentPriceInCents: parsedInput.appointmentPriceInCents,
       })
       .onConflictDoUpdate({
         target: [doctorsTable.id],
@@ -65,7 +66,8 @@ export const upsertDoctor = actionClient
           availableToWeekDay: parsedInput.availableToWeekDay,
           availableFromtime: availableFromTimeUTC.format("HH:mm:ss"),
           availableTotime: availableToTimeUTC.format("HH:mm:ss"),
-          appointmentPriceInCenst: parsedInput.appointmentPriceInCents,
+          appointmentPriceInCents: parsedInput.appointmentPriceInCents,
         },
       });
+    revalidatePath("/doctors");
   });
