@@ -1,10 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAction } from "next-safe-action/hooks";
 import { useForm } from "react-hook-form";
 import { NumericFormat } from "react-number-format";
+import { toast } from "sonner";
 import z from "zod";
 
+import { upsertDoctor } from "@/actions/upsert-doctor";
 import { Button } from "@/components/ui/button";
 import {
   DialogContent,
@@ -34,29 +37,38 @@ import {
 
 import { medicalSpecialties } from "../constants";
 
-const formSchema = z.object({
-  name: z.string().trim().min(2, { message: "Nome é obrigatório" }),
-  specialty: z
-    .string()
-    .trim()
-    .min(2, { message: "Especialidade é obrigatório" }),
-  appointmentPrice: z
-    .number()
-    .min(2, { message: "Preço da consulta é obrigatório" }),
-  availableFromWeekDay: z.string(),
-  availableToWeekDay: z.string(),
-  availableFromTime: z
-    .string()
-    .min(2, { message: "Hora inicial é obrigatória" }),
-  availableToTime: z.string().min(2, { message: "Hora final é obrigatória" }),
-}).refine((data) => {
-  return data.availableFromTime < data.availableToTime
-}, {
-  message: "Hora inicial deve ser anterior a hora final",
-  path: ["availableToTime"],
-});
+const formSchema = z
+  .object({
+    name: z.string().trim().min(2, { message: "Nome é obrigatório" }),
+    specialty: z
+      .string()
+      .trim()
+      .min(2, { message: "Especialidade é obrigatório" }),
+    appointmentPrice: z
+      .number()
+      .min(2, { message: "Preço da consulta é obrigatório" }),
+    availableFromWeekDay: z.string(),
+    availableToWeekDay: z.string(),
+    availableFromTime: z
+      .string()
+      .min(2, { message: "Hora inicial é obrigatória" }),
+    availableToTime: z.string().min(2, { message: "Hora final é obrigatória" }),
+  })
+  .refine(
+    (data) => {
+      return data.availableFromTime < data.availableToTime;
+    },
+    {
+      message: "Hora inicial deve ser anterior a hora final",
+      path: ["availableToTime"],
+    },
+  );
 
-const UpsertDoctorForm = () => {
+  interface UpsertDoctorFormProps {
+    onSuccess?: () => void;
+  }
+
+const UpsertDoctorForm = ({ onSuccess }: UpsertDoctorFormProps) => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -70,8 +82,23 @@ const UpsertDoctorForm = () => {
     },
   });
 
-  const handleSubmit = (values: z.infer<typeof formSchema>) => {
-    console.log(values);
+  const upsertDoctorAction = useAction(upsertDoctor, {
+    onSuccess: () => {
+      toast.success("Médico adicionado com sucesso");
+      onSuccess?.();
+    },
+    onError: () => {
+      toast.error("Erro ao adicionar médico");
+    },
+  });
+
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    upsertDoctorAction.execute({
+      ...values,
+      availableFromWeekDay: parseInt(values.availableFromWeekDay),
+      availableToWeekDay: parseInt(values.availableToWeekDay),
+      appointmentPriceInCents: values.appointmentPrice * 100,
+    });
   };
 
   return (
@@ -83,7 +110,7 @@ const UpsertDoctorForm = () => {
         </DialogDescription>
       </DialogHeader>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
             control={form.control}
             name="name"
@@ -203,7 +230,6 @@ const UpsertDoctorForm = () => {
                     <SelectItem value="6">Sábado</SelectItem>
                   </SelectContent>
                 </Select>
-
                 <FormMessage />
               </FormItem>
             )}
@@ -347,8 +373,12 @@ const UpsertDoctorForm = () => {
             )}
           />
           <DialogFooter>
-            <Button className="w-full" type="submit">
-              Adicionar
+            <Button
+              className="w-full"
+              type="submit"
+              disabled={upsertDoctorAction.isPending}
+            >
+              {upsertDoctorAction.isPending ? "Adicionando..." : "Adicionar"}
             </Button>
           </DialogFooter>
         </form>
