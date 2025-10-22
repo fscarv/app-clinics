@@ -1,5 +1,7 @@
 "use server";
 
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import { headers } from "next/headers";
 
 import { db } from "@/db";
@@ -9,9 +11,26 @@ import { actionClient } from "@/lib/next-safe-action";
 
 import { upsertdoctorSchema } from "./schema";
 
+dayjs.extend(utc);
+
 export const upsertDoctor = actionClient
   .schema(upsertdoctorSchema)
   .action(async ({ parsedInput }) => {
+    const availableFromTime = parsedInput.availableFromTime;
+    const availableToTime = parsedInput.availableToTime;
+
+    const availableFromTimeUTC = dayjs()
+      .set("hour", parseInt(availableFromTime.split(":")[0]))
+      .set("minute", parseInt(availableFromTime.split(":")[1]))
+      .set("second", parseInt(availableFromTime.split(":")[2]))
+      .utc();
+
+    const availableToTimeUTC = dayjs()
+      .set("hour", parseInt(availableToTime.split(":")[0]))
+      .set("minute", parseInt(availableToTime.split(":")[1]))
+      .set("second", parseInt(availableToTime.split(":")[2]))
+      .utc();
+
     const session = await auth.api.getSession({
       headers: await headers(),
     });
@@ -33,8 +52,8 @@ export const upsertDoctor = actionClient
         specialty: parsedInput.specialty,
         availableFromWeekDay: parsedInput.availableFromWeekDay,
         availableToWeekDay: parsedInput.availableToWeekDay,
-        availableFromtime: parsedInput.availableFromTime,
-        availableTotime: parsedInput.availableToTime,
+        availableFromtime: availableFromTimeUTC.format("HH:mm:ss"),
+        availableTotime: availableToTimeUTC.format("HH:mm:ss"),
         appointmentPriceInCenst: parsedInput.appointmentPriceInCents,
       })
       .onConflictDoUpdate({
@@ -44,8 +63,8 @@ export const upsertDoctor = actionClient
           specialty: parsedInput.specialty,
           availableFromWeekDay: parsedInput.availableFromWeekDay,
           availableToWeekDay: parsedInput.availableToWeekDay,
-          availableFromtime: parsedInput.availableFromTime,
-          availableTotime: parsedInput.availableToTime,
+          availableFromtime: availableFromTimeUTC.format("HH:mm:ss"),
+          availableTotime: availableToTimeUTC.format("HH:mm:ss"),
           appointmentPriceInCenst: parsedInput.appointmentPriceInCents,
         },
       });
